@@ -1,0 +1,7 @@
+[project]
+protostar-version = "0.8.1"
+cairo-path = ["./src"]
+
+[contracts]
+proxy = ["src/Proxy.cairo"]
+starkpunks = ["src/Starkpunks.cairo"]
