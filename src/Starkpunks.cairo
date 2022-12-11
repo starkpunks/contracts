@@ -4,8 +4,13 @@
 %lang starknet
 
 from starkware.cairo.common.cairo_builtins import HashBuiltin
-from starkware.cairo.common.uint256 import Uint256, uint256_add, uint256_unsigned_div_rem, assert_uint256_le
-from starkware.cairo.common.math import assert_not_zero
+from starkware.cairo.common.uint256 import (
+    Uint256,
+    uint256_add,
+    uint256_unsigned_div_rem,
+    assert_uint256_le,
+)
+from starkware.cairo.common.math import assert_not_zero, assert_in_range
 from starkware.starknet.common.syscalls import get_caller_address
 from starkware.cairo.common.alloc import alloc
 
@@ -15,10 +20,10 @@ from openzeppelin.token.erc721.library import ERC721
 from openzeppelin.token.erc721.enumerable.library import ERC721Enumerable
 from openzeppelin.upgrades.library import Proxy
 
-from utils.token_uri.library import TokenUri
+from utils.token_uri import TokenUri
+from utils.whitelist import Whitelist
+from utils.royalty import Royalty
 from starkpunks.library import Starkpunks
-
-const MAX_SUPPLY = 10000;
 
 //
 // Getters
@@ -100,19 +105,66 @@ func tokenOfOwnerByIndex{pedersen_ptr: HashBuiltin*, syscall_ptr: felt*, range_c
 }
 
 @view
-func baseTokenUri{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}() -> (
-    baseTokenUri_len: felt, baseTokenUri: felt*
+func baseTokenURI{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}() -> (
+    baseTokenURI_len: felt, baseTokenURI: felt*
 ) {
-    let (baseTokenUri_len, baseTokenUri) = TokenUri.base_token_uri();
-    return (baseTokenUri_len, baseTokenUri);
+    let (baseTokenURI_len, baseTokenURI) = TokenUri.base_token_uri();
+    return (baseTokenURI_len, baseTokenURI);
 }
 
 @view
-func tokenUri{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
+func tokenURI{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
     tokenId: Uint256
-) -> (tokenUri_len: felt, tokenUri: felt*) {
-    let (tokenUri_len, tokenUri) = TokenUri.token_uri(tokenId);
-    return (tokenUri_len, tokenUri);
+) -> (tokenURI_len: felt, tokenURI: felt*) {
+    let (tokenURI_len, tokenURI) = TokenUri.token_uri(tokenId);
+    return (tokenURI_len, tokenURI);
+}
+
+// EIP 2981 - Royalties
+
+@view
+func royaltyInfo{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
+    tokenId: Uint256, salePrice: Uint256
+) -> (receiver: felt, royaltyAmount: Uint256) {
+    let (receiver: felt, royaltyAmount: Uint256) = Royalty.royalty_info(tokenId, salePrice);
+    return (receiver, royaltyAmount);
+}
+
+// Custom views
+
+@view
+func merkle_root{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}() -> (
+    merkle_root: felt
+) {
+    return Whitelist.merkle_root();
+}
+
+@view
+func max_supply{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}() -> (
+    max_supply: felt
+) {
+    return Starkpunks.max_supply();
+}
+
+@view
+func mint_phase{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}() -> (
+    mint_phase: felt
+) {
+    return Starkpunks.mint_phase();
+}
+
+@view
+func minted_count{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
+    address: felt
+) -> (minted_count: felt) {
+    return Starkpunks.minted_count(address);
+}
+
+@view
+func max_per_address{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}() -> (
+    max_per_address: felt
+) {
+    return Starkpunks.max_per_address();
 }
 
 //
@@ -121,12 +173,14 @@ func tokenUri{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
 
 @external
 func initializer{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
-    proxy_admin: felt, owner: felt
+    owner: felt, max_supply: felt
 ) {
-    Proxy.initializer(proxy_admin);
-    ERC721.initializer('StarkPunks', 'SPK');
-    ERC721Enumerable.initializer();
+    Proxy.initializer(owner);
     Ownable.initializer(owner);
+    ERC721.initializer('Starkpunks', 'SPK');
+    ERC721Enumerable.initializer();
+    Starkpunks.initializer(max_supply);
+    Royalty.initializer();
     return ();
 }
 
@@ -138,7 +192,6 @@ func upgrade{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
     Proxy._set_implementation_hash(new_implementation);
     return ();
 }
-
 
 @external
 func approve{pedersen_ptr: HashBuiltin*, syscall_ptr: felt*, range_check_ptr}(
@@ -173,11 +226,11 @@ func safeTransferFrom{pedersen_ptr: HashBuiltin*, syscall_ptr: felt*, range_chec
 }
 
 @external
-func setBaseTokenUri{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
-    baseTokenUri_len: felt, baseTokenUri: felt*
+func setBaseTokenURI{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
+    baseTokenURI_len: felt, baseTokenURI: felt*
 ) {
     Ownable.assert_only_owner();
-    TokenUri._set_base_token_uri(baseTokenUri_len, baseTokenUri);
+    TokenUri._set_base_token_uri(baseTokenURI_len, baseTokenURI);
     return ();
 }
 
@@ -203,12 +256,28 @@ func burn{pedersen_ptr: HashBuiltin*, syscall_ptr: felt*, range_check_ptr}(token
 }
 
 @external
-func mint{pedersen_ptr: HashBuiltin*, syscall_ptr: felt*, range_check_ptr}(to: felt) {
-    let (caller) = get_caller_address();
-    with_attr error_message("ERC721: caller is the zero address") {
-        assert_not_zero(caller);
-    }
-    Starkpunks._mint(to);
+func setMintPhase{pedersen_ptr: HashBuiltin*, syscall_ptr: felt*, range_check_ptr}(
+    mint_phase: felt
+) {
+    Starkpunks.set_mint_phase(mint_phase);
+    return ();
+}
+
+@external
+func setMaxMintsPerAddress{pedersen_ptr: HashBuiltin*, syscall_ptr: felt*, range_check_ptr}(
+    max_per_address: felt
+) {
+    Starkpunks.set_max_per_address(max_per_address);
+    return ();
+}
+
+// Custom modifiers
+
+@external
+func setMerkleRoot{pedersen_ptr: HashBuiltin*, syscall_ptr: felt*, range_check_ptr}(
+    merkle_root: felt
+) {
+    Whitelist.set_merkle_root(merkle_root);
     return ();
 }
 
@@ -216,7 +285,20 @@ func mint{pedersen_ptr: HashBuiltin*, syscall_ptr: felt*, range_check_ptr}(to: f
 func mintCount{pedersen_ptr: HashBuiltin*, syscall_ptr: felt*, range_check_ptr}(
     to: felt, count: felt
 ) {
-    Ownable.assert_only_owner();
-    Starkpunks._mint_count(to, count);
+    Starkpunks.mint_count(to, count);
+    return ();
+}
+
+@external
+func mintWhitelist{pedersen_ptr: HashBuiltin*, syscall_ptr: felt*, range_check_ptr}(
+    proof_len: felt, proof: felt*
+) {
+    Starkpunks.mint_whitelist(proof_len, proof);
+    return ();
+}
+
+@external
+func mintPublic{pedersen_ptr: HashBuiltin*, syscall_ptr: felt*, range_check_ptr}() {
+    Starkpunks.mint_public();
     return ();
 }

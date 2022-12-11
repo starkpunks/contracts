@@ -291,14 +291,14 @@
     },
     {
         "inputs": [],
-        "name": "baseTokenUri",
+        "name": "baseTokenURI",
         "outputs": [
             {
-                "name": "baseTokenUri_len",
+                "name": "baseTokenURI_len",
                 "type": "felt"
             },
             {
-                "name": "baseTokenUri",
+                "name": "baseTokenURI",
                 "type": "felt*"
             }
         ],
@@ -312,14 +312,14 @@
                 "type": "Uint256"
             }
         ],
-        "name": "tokenUri",
+        "name": "tokenURI",
         "outputs": [
             {
-                "name": "tokenUri_len",
+                "name": "tokenURI_len",
                 "type": "felt"
             },
             {
-                "name": "tokenUri",
+                "name": "tokenURI",
                 "type": "felt*"
             }
         ],
@@ -329,11 +329,101 @@
     {
         "inputs": [
             {
-                "name": "proxy_admin",
+                "name": "tokenId",
+                "type": "Uint256"
+            },
+            {
+                "name": "salePrice",
+                "type": "Uint256"
+            }
+        ],
+        "name": "royaltyInfo",
+        "outputs": [
+            {
+                "name": "receiver",
                 "type": "felt"
             },
             {
+                "name": "royaltyAmount",
+                "type": "Uint256"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "merkle_root",
+        "outputs": [
+            {
+                "name": "merkle_root",
+                "type": "felt"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "max_supply",
+        "outputs": [
+            {
+                "name": "max_supply",
+                "type": "felt"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "mint_phase",
+        "outputs": [
+            {
+                "name": "mint_phase",
+                "type": "felt"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "name": "address",
+                "type": "felt"
+            }
+        ],
+        "name": "minted_count",
+        "outputs": [
+            {
+                "name": "minted_count",
+                "type": "felt"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "max_per_address",
+        "outputs": [
+            {
+                "name": "max_per_address",
+                "type": "felt"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
                 "name": "owner",
+                "type": "felt"
+            },
+            {
+                "name": "max_supply",
                 "type": "felt"
             }
         ],
@@ -431,15 +521,15 @@
     {
         "inputs": [
             {
-                "name": "baseTokenUri_len",
+                "name": "baseTokenURI_len",
                 "type": "felt"
             },
             {
-                "name": "baseTokenUri",
+                "name": "baseTokenURI",
                 "type": "felt*"
             }
         ],
-        "name": "setBaseTokenUri",
+        "name": "setBaseTokenURI",
         "outputs": [],
         "type": "function"
     },
@@ -474,11 +564,33 @@
     {
         "inputs": [
             {
-                "name": "to",
+                "name": "mint_phase",
                 "type": "felt"
             }
         ],
-        "name": "mint",
+        "name": "setMintPhase",
+        "outputs": [],
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "name": "max_per_address",
+                "type": "felt"
+            }
+        ],
+        "name": "setMaxMintsPerAddress",
+        "outputs": [],
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "name": "merkle_root",
+                "type": "felt"
+            }
+        ],
+        "name": "setMerkleRoot",
         "outputs": [],
         "type": "function"
     },
@@ -494,6 +606,27 @@
             }
         ],
         "name": "mintCount",
+        "outputs": [],
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "name": "proof_len",
+                "type": "felt"
+            },
+            {
+                "name": "proof",
+                "type": "felt*"
+            }
+        ],
+        "name": "mintWhitelist",
+        "outputs": [],
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "mintPublic",
         "outputs": [],
         "type": "function"
     }
